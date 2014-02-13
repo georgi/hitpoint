@@ -8,7 +8,7 @@
 #include "http-parser/http_parser.h"
 #include "sds/sds.h"
 
-static int http_connect(const char *host)
+static int http_connect(const char *host, int port)
 {
     int fd;
     struct sockaddr_in serv_addr;
@@ -28,7 +28,7 @@ static int http_connect(const char *host)
     bcopy((char *)server->h_addr, 
          (char *)&serv_addr.sin_addr.s_addr,
          server->h_length);
-    serv_addr.sin_port = htons(80);
+    serv_addr.sin_port = htons(port);
 
     if (connect(fd, (const struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0)  {
         fprintf(stderr, "could not connect to %s\n", host);
@@ -52,27 +52,54 @@ const char *http_header(response *response, const char *name)
     return NULL;
 }
 
-response *http_request_url(const char *url)
+void http_add_header(request *request, const char *name, const char *value)
+{
+    header *header = malloc(sizeof(struct header));
+    header->name = sdsnew(name);
+    header->value = sdsnew(value);
+    header->next = request->headers;
+    request->headers = header;
+}
+
+int http_request_url(request *request, char *url)
 {
     struct http_parser_url parser_url;
 
     if (http_parser_parse_url(url, strlen(url), 0, &parser_url) != 0) {
         fprintf(stderr, "invalid url: %s\n", url);
-        return NULL;
+        return -1;
     }
 
-    sds host = sdsnewlen(url + parser_url.field_data[UF_HOST].off, parser_url.field_data[UF_HOST].len);
-    sds path = sdsnewlen(url + parser_url.field_data[UF_PATH].off, parser_url.field_data[UF_PATH].len);
-    sds query = sdsnewlen(url + parser_url.field_data[UF_QUERY].off, parser_url.field_data[UF_QUERY].len);
-    sds uri = sdscatsds(sdscat(path, "?"), query);
-    
-    response *response = http_request(host, uri);
+    request->host = sdsnewlen(url + parser_url.field_data[UF_HOST].off, parser_url.field_data[UF_HOST].len);
+    request->port = 80;
+    request->path = sdscatsds(sdscat(sdsnewlen(url + parser_url.field_data[UF_PATH].off, parser_url.field_data[UF_PATH].len), "?"),
+                             sdsnewlen(url + parser_url.field_data[UF_QUERY].off, parser_url.field_data[UF_QUERY].len));
 
-    sdsfree(host);
-    sdsfree(query);
-    sdsfree(uri);
+    return 0;
+}
 
-    return response;
+request *http_new_request()
+{
+    request *request = malloc(sizeof(struct request));
+    memset(request, 0, sizeof(struct request));
+    return request;
+}
+
+request *http_get(char *url)
+{
+    request *request = http_new_request();
+    request->method = HTTP_GET;
+    http_request_url(request, url);
+    return request;
+}
+
+request *http_post(char *url, char *body)
+{
+    request *request = http_new_request();
+    request->method = HTTP_GET;
+    request->body = body;
+    http_request_url(request, url);
+    return request;
 }
 
 int on_url(http_parser *parser, const char *at, size_t len) {
@@ -155,15 +182,11 @@ static int http_read_headers(http_parser *parser, response *response)
     return 0;
 }
 
-response *http_request(const char *host, const char *path)
+response *http_send(request *request)
 {
-#define BUFSIZE 4096
-
-    char sendline[BUFSIZE];
-  
     response *response = malloc(sizeof(struct response));
     memset(response, 0, sizeof(struct response));
-    response->fd = http_connect(host);
+    response->fd = http_connect(request->host, request->port);
 
     http_parser parser;
     http_parser_init(&parser, HTTP_RESPONSE);
@@ -174,9 +197,21 @@ response *http_request(const char *host, const char *path)
         return NULL;
     }
 
-    snprintf(sendline, BUFSIZE, "GET %s HTTP/1.0\r\nHost: %s\r\nUser-Agent:hitpoint\r\n\r\n", path, host);
+    sds s = sdsempty();
 
-    write(response->fd, sendline, BUFSIZE);
+    s = sdscatprintf(s, "GET %s HTTP/1.0\r\n", request->path);
+    s = sdscatprintf(s, "Host: %s\r\n", request->host);
+
+    header *header = request->headers;
+
+    while (header != NULL) {
+        s = sdscatprintf(s, "%s: %s\r\n", header->name, header->value);
+        header = header->next;
+    }
+
+    sdscat(s, "\r\n");
+
+    write(response->fd, s, sdslen(s));
 
     if (http_read_headers(&parser, response) != 0) {
         free_response(response);
