@@ -1,5 +1,3 @@
-#include "http-parser/http_parser.h"
-
 typedef struct header {
     char *name;
     char *value;
@@ -7,7 +5,7 @@ typedef struct header {
 } header;
 
 typedef struct request {
-    enum http_method method;
+    int method;
     char *host;
     char *path;
     int port;

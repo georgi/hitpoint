@@ -141,9 +141,15 @@ static int on_header_value(http_parser *parser, const char *at, size_t len) {
     return 0;
 }
 
+int on_status(http_parser *parser, const char *at, size_t len) {
+    response *response = parser->data;
+    response->status = parser->status_code;
+    response->content_length = parser->content_length;
+    return 0;
+}
+
 int on_headers_complete(http_parser *parser) {
     response *response = parser->data;
-    fflush(stdout);
     response->status = parser->status_code;
     response->content_length = parser->content_length;
     return 0;
@@ -158,6 +164,7 @@ int on_message_complete(http_parser *parser) {
 http_parser_settings parser_settings = {
     .on_message_begin = on_message_begin,
     .on_url = on_url,
+    .on_status = on_status,
     .on_header_field = on_header_field,
     .on_header_value = on_header_value,
     .on_headers_complete = on_headers_complete,
