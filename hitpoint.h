@@ -6,11 +6,11 @@ typedef struct header {
 
 typedef struct request {
     int method;
-    char *host;
-    char *path;
+    const char *host;
+    const char *path;
     int port;
     header *headers;
-    char *body;
+    const char *body;
 } request;
 
 typedef struct response {
@@ -23,6 +23,8 @@ typedef struct response {
     unsigned int pos;
     unsigned int content_length;
 } response;
+
+request *http_new_request();
 
 request *http_get(const char *url);
 

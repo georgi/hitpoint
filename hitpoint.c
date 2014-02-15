@@ -61,7 +61,7 @@ void http_add_header(request *request, const char *name, const char *value)
     request->headers = header;
 }
 
-int http_request_url(request *request, char *url)
+int http_request_url(request *request, const char *url)
 {
     struct http_parser_url parser_url;
 
@@ -78,25 +78,24 @@ int http_request_url(request *request, char *url)
     return 0;
 }
 
-request *http_new_request()
+request *http_new_request(int method)
 {
     request *request = malloc(sizeof(struct request));
     memset(request, 0, sizeof(struct request));
+    request->method = method;
     return request;
 }
 
 request *http_get(const char *url)
 {
-    request *request = http_new_request();
-    request->method = HTTP_GET;
+    request *request = http_new_request(HTTP_GET);
     http_request_url(request, url);
     return request;
 }
 
 request *http_post(const char *url, const char *body)
 {
-    request *request = http_new_request();
-    request->method = HTTP_GET;
+    request *request = http_new_request(HTTP_POST);
     request->body = body;
     http_request_url(request, url);
     return request;
