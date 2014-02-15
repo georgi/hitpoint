@@ -237,7 +237,10 @@ void free_response(response *response)
         free(prev);
     }
     
-    free(response->body);
+    if (response->body != NULL) {
+        free(response->body);
+    }
+
     free(response);
 }
 
