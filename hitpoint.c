@@ -85,7 +85,7 @@ request *http_new_request()
     return request;
 }
 
-request *http_get(char *url)
+request *http_get(const char *url)
 {
     request *request = http_new_request();
     request->method = HTTP_GET;
@@ -93,7 +93,7 @@ request *http_get(char *url)
     return request;
 }
 
-request *http_post(char *url, char *body)
+request *http_post(const char *url, const char *body)
 {
     request *request = http_new_request();
     request->method = HTTP_GET;

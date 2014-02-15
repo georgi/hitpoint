@@ -24,9 +24,9 @@ typedef struct response {
     unsigned int content_length;
 } response;
 
-request *http_get(char *url);
+request *http_get(const char *url);
 
-request *http_post(char *url, char *body);
+request *http_post(const char *url, const char *body);
 
 response *http_send(request *request);
 
