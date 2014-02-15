@@ -101,11 +101,11 @@ request *http_post(const char *url, const char *body)
     return request;
 }
 
-int on_url(http_parser *parser, const char *at, size_t len) {
+static int on_url(http_parser *parser, const char *at, size_t len) {
     return 0;
 }
     
-int on_message_begin(http_parser *parser) {
+static int on_message_begin(http_parser *parser) {
     return 0;
 }
 
@@ -140,21 +140,21 @@ static int on_header_value(http_parser *parser, const char *at, size_t len) {
     return 0;
 }
 
-int on_status(http_parser *parser, const char *at, size_t len) {
+static int on_status(http_parser *parser, const char *at, size_t len) {
     response *response = parser->data;
     response->status = parser->status_code;
     response->content_length = parser->content_length;
     return 0;
 }
 
-int on_headers_complete(http_parser *parser) {
+static int on_headers_complete(http_parser *parser) {
     response *response = parser->data;
     response->status = parser->status_code;
     response->content_length = parser->content_length;
     return 0;
 }
 
-int on_message_complete(http_parser *parser) {
+static int on_message_complete(http_parser *parser) {
     response *response = parser->data;
     response->complete = 1;
     return 0;
