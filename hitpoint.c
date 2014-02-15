@@ -143,14 +143,13 @@ static int on_header_value(http_parser *parser, const char *at, size_t len) {
 static int on_status(http_parser *parser, const char *at, size_t len) {
     response *response = parser->data;
     response->status = parser->status_code;
-    response->content_length = parser->content_length;
     return 0;
 }
 
 static int on_headers_complete(http_parser *parser) {
     response *response = parser->data;
-    response->status = parser->status_code;
     response->content_length = parser->content_length;
+    response->headers_complete = 1;
     return 0;
 }
 
@@ -177,12 +176,11 @@ static int http_read_headers(http_parser *parser, response *response)
     char buf[1];
     int fd = response->fd;
 
-    while ((ret = read(fd, buf, sizeof(buf))) > 0) {
+    while (response->headers_complete == 0 && (ret = read(fd, buf, sizeof(buf))) > 0) {
         if (http_parser_execute(parser, &parser_settings, buf, ret) != (size_t) ret) {
             fprintf(stderr, "parse error\n");
             return -1;
         }
-        if (response->status != 0) break;
     }
 
     return 0;
@@ -232,10 +230,11 @@ void free_response(response *response)
     header *header = response->headers;
 
     while (header != NULL) {
-        free(header);
+        struct header *prev = header;
         sdsfree(header->name);
         sdsfree(header->value);
         header = header->next;
+        free(prev);
     }
     
     free(response->body);

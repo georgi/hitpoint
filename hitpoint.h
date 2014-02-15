@@ -17,6 +17,7 @@ typedef struct response {
     int fd;
     int status;
     int complete;
+    int headers_complete;
     int header_state;
     header *headers;
     char *body;
